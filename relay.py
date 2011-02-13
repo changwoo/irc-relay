@@ -64,7 +64,7 @@ class ChannelRelay:
                 prefix = self.data[name]['prefix']
                 if not unimsg.startswith(prefix):
                     return
-                unimsg = unimsg[len(prefix):]
+                unimsg = unimsg[len(prefix):].lstrip()
             except KeyError:
                 # no prefix - relay it
                 pass
