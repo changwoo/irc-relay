@@ -89,6 +89,16 @@ class ChannelRelay:
             try:
                 pnick = (uninick[0] + '_' + uninick[1:]).encode(target_charset)
                 target_msg = '<%s> ' % (pnick,) + unimsg.encode(target_charset)
-                self.data[n]['conn'].privmsg(target_channel, target_msg)
             except UnicodeEncodeError:
                 continue
+
+            # truncate the string under the IRC line length limit
+            try:
+                max_msg_bytes = self.data[n]['max-msg-bytes']
+                target_msg = target_msg[:max_msg_bytes]
+                tempunimsg = target_msg.decode(target_charset, 'ignore')
+                target_msg = tempunimsg.encode(target_charset)
+            except KeyError:
+                pass
+
+            self.data[n]['conn'].privmsg(target_channel, target_msg)
