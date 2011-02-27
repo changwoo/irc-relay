@@ -71,8 +71,9 @@ class ChannelRelay:
         except UnicodeDecodeError:
             return
 
+        # avoid possible duplicated relay
         try:
-            if unimsg[0] == u'<' and unimsg[2] == u'_':
+            if unimsg[0] == u'<':
                 return
         except IndexError:
             pass
@@ -87,7 +88,13 @@ class ChannelRelay:
             target_charset = self.data[n]['charset']
             
             try:
-                pnick = (uninick[0] + '_' + uninick[1:]).encode(target_charset)
+                try:
+                    if self.data[n]['mangle-nicks']:
+                        pnick = (uninick[0] + '_' + uninick[1:]).encode(target_charset)
+                    else:
+                        pnick = uninick.encode(target_charset)
+                except KeyError:
+                    pnick = uninick.encode(target_charset)
                 target_msg = '<%s> ' % (pnick,) + unimsg.encode(target_charset)
             except UnicodeEncodeError:
                 continue

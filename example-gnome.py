@@ -13,6 +13,7 @@ data = {
         'charset': 'UTF-8',
         'max-msg-bytes': 400,
         #'prefix': u'>',
+        #'mangle-nicks': True,
         },
     'hanirc': {
         'host': 'irc.hanirc.org',
@@ -22,6 +23,7 @@ data = {
         'channel': '#gnome',
         'charset': 'CP949',
         'max-msg-bytes': 400,
+        #'mangle-nicks': True,
         },
     }
 
