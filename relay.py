@@ -18,13 +18,18 @@ class ChannelRelay:
                 username = infos[name]['username']
             except KeyError:
                 username = nick
+            try:
+                realname = infos[name]['realname']
+            except KeyError:
+                realname = nick
 
             charset = infos[name]['charset']
 
             ircobj = IRC()
             self.data[name]['ircobj'] = ircobj
-            conn = ircobj.server().connect(host, port, username,
-                                           password, username)
+            conn = ircobj.server().connect(host, port, nick.encode(charset),
+                                           password, username.encode(charset),
+                                           realname.encode(charset))
             self.data[name]['conn'] = conn
             conn.server_name = name
 
@@ -42,11 +47,9 @@ class ChannelRelay:
         name = conn.server_name
         channel = self.data[name]['channel']
         charset = self.data[name]['charset']
-        nick = self.data[name]['nick']
         print 'source: %s' % event.source()
         print 'target: %s' % event.target()
         print 'msg: %s' % event.arguments()[0]
-        conn.nick(nick.encode(charset))
         conn.join(channel)
 
     def on_pubmsg(self, conn, event):
