@@ -10,9 +10,9 @@ data = {
         'username': u'GNOMERELAY',
         'nick': u'♠릴레이',
         'channel': '#gnome',
-        'prefix': u'>',
         'charset': 'UTF-8',
         'max-msg-bytes': 400,
+        #'prefix': u'>',
         },
     'hanirc': {
         'host': 'irc.hanirc.org',
