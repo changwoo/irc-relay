@@ -18,7 +18,7 @@ data = {
         'host': 'irc.hanirc.org',
         'port': 6666,
         'username': u'GNOMERELAY',
-        'nick': u'♠릴레이',
+        'nick': u'♣릴레이',
         'channel': '#gnome',
         'charset': 'CP949',
         'max-msg-bytes': 400,
