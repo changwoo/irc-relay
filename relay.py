@@ -34,7 +34,8 @@ class ChannelRelay:
             conn.server_name = name
 
             conn.add_global_handler('welcome', self.on_welcome)
-            conn.add_global_handler('pubmsg', self.on_pubmsg)
+            conn.add_global_handler('pubmsg', self.on_msg)
+            conn.add_global_handler('action', self.on_msg)
             self.conns.append(conn)
 
     def main(self):
@@ -52,7 +53,7 @@ class ChannelRelay:
         print 'msg: %s' % event.arguments()[0]
         conn.join(channel)
 
-    def on_pubmsg(self, conn, event):
+    def on_msg(self, conn, event):
         name = conn.server_name
         channel = self.data[name]['channel']
         if event.target() != channel:
@@ -111,4 +112,7 @@ class ChannelRelay:
             except KeyError:
                 pass
 
-            self.data[n]['conn'].privmsg(target_channel, target_msg)
+            if event.eventtype() == 'pubmsg':
+                self.data[n]['conn'].privmsg(target_channel, target_msg)
+            elif event.eventtype() == 'action':
+                self.data[n]['conn'].action(target_channel, target_msg)
