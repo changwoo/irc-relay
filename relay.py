@@ -94,12 +94,14 @@ class ChannelRelay:
             try:
                 try:
                     if self.data[n]['mangle-nicks']:
-                        pnick = (uninick[0] + '_' + uninick[1:]).encode(target_charset)
+                        pnick = (uninick[0] + '_' + uninick[1:])
                     else:
-                        pnick = uninick.encode(target_charset)
+                        pnick = uninick
                 except KeyError:
-                    pnick = uninick.encode(target_charset)
-                target_msg = '<%s> ' % (pnick,) + unimsg.encode(target_charset)
+                    pnick = uninick
+                pnick = uninick.encode(target_charset, 'replace')
+                target_msg = '<%s> ' % (pnick,)
+                target_msg += unimsg.encode(target_charset, 'replace')
             except UnicodeEncodeError:
                 continue
 
