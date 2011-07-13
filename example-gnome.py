@@ -28,6 +28,7 @@ data = {
         'charset': 'CP949',
         'max-msg-bytes': 400,
         #'mangle-nicks': True,
+        'reconnect-delay': 3,
         },
     }
 

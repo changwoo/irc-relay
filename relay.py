@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 # irc relay
 # Copyright (C) 2011 Changwoo Ryu
 #
@@ -15,56 +16,74 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from irclib import IRC
+from irclib import ServerNotConnectedError
+import time
 
 class ChannelRelay:
     def __init__(self, infos):
-        self.conns = []
         self.data = infos
         for name in infos.keys():
-            host = infos[name]['host']
-            port = infos[name]['port']
-            nick = infos[name]['nick']
-            try:
-                password = infos[name]['password']
-            except KeyError:
-                password = ''
-            try:
-                username = infos[name]['username']
-            except KeyError:
-                username = nick
-            try:
-                realname = infos[name]['realname']
-            except KeyError:
-                realname = nick
+            self.connect(name)
 
-            charset = infos[name]['charset']
+    def disconnect(self, servname):
+        ircobj = self.data[servname]['ircobj']
+        ircobj.server().disconnect()
+        del self.data[servname]['conn']
+        del self.data[servname]['ircobj']
 
-            ircobj = IRC()
-            self.data[name]['ircobj'] = ircobj
-            conn = ircobj.server().connect(host, port, nick.encode(charset),
-                                           password, username.encode(charset),
-                                           realname.encode(charset))
-            self.data[name]['conn'] = conn
-            conn.server_name = name
+    def connect(self, servname):
+        host = self.data[servname]['host']
+        port = self.data[servname]['port']
+        nick = self.data[servname]['nick']
+        try:
+            password = self.data[servname]['password']
+        except KeyError:
+            password = ''
+        try:
+            username = self.data[servname]['username']
+        except KeyError:
+            username = nick
+        try:
+            realname = self.data[servname]['realname']
+        except KeyError:
+            realname = nick
 
-            conn.add_global_handler('welcome', self.on_welcome)
-            conn.add_global_handler('pubmsg', self.on_msg)
-            conn.add_global_handler('action', self.on_msg)
-            self.conns.append(conn)
+        charset = self.data[servname]['charset']
+
+        ircobj = IRC()
+        self.data[servname]['ircobj'] = ircobj
+        conn = ircobj.server().connect(host, port, nick.encode(charset),
+                                       password, username.encode(charset),
+                                       realname.encode(charset))
+        self.data[servname]['conn'] = conn
+        conn.server_name = servname
+
+        conn.add_global_handler('welcome', self.on_welcome)
+        conn.add_global_handler('pubmsg', self.on_msg)
+        conn.add_global_handler('action', self.on_msg)
 
     def main(self):
         while True:
             for name in self.data.keys():
-                self.data[name]['ircobj'].process_once(0.5)
+                try:
+                    self.data[name]['ircobj'].process_once(0.5)
+                except ServerNotConnectedError:
+                    print 'disconnected, reconnecting...'
+                    self.disconnect(name);
+                    try:
+                        time.sleep(self.data[name]['reconnect-delay'])
+                    except:
+                        pass
+                    self.connect(name);
 
     # irclib callbacks
     def on_welcome(self, conn, event):
         name = conn.server_name
         channel = self.data[name]['channel']
         charset = self.data[name]['charset']
-        print 'source: %s' % event.source()
-        print 'target: %s' % event.target()
-        print 'msg: %s' % event.arguments()[0]
+        print 'source: %s' % event.source().decode(charset).encode('utf-8')
+        print 'target: %s' % event.target().decode(charset).encode('utf-8')
+        print 'msg: %s' % event.arguments()[0].decode(charset).encode('utf-8')
         conn.join(channel)
 
     def on_msg(self, conn, event):
@@ -96,7 +115,7 @@ class ChannelRelay:
         except IndexError:
             pass
 
-        print 'pubmsg: %s' % unimsg
+        print 'pubmsg: %s' % unimsg.encode('utf-8')
 
         for n in self.data.keys():
             if n == name:
