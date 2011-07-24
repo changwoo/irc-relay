@@ -110,12 +110,12 @@ class ChannelRelay:
 
         # avoid possible duplicated relay
         try:
-            if unimsg[0] == u'<':
+            if unimsg[0] == u'<' and '>\t' in unimsg:
                 return
         except IndexError:
             pass
 
-        print 'pubmsg: %s' % unimsg.encode('utf-8')
+        print 'pubmsg: <%s> %s' % (uninick.encode('utf-8'), unimsg.encode('utf-8'))
 
         for n in self.data.keys():
             if n == name:
@@ -133,7 +133,7 @@ class ChannelRelay:
                 except KeyError:
                     pnick = uninick
                 pnick = uninick.encode(target_charset, 'replace')
-                target_msg = '<%s> ' % (pnick,)
+                target_msg = '<%s>\t' % (pnick,)
                 target_msg += unimsg.encode(target_charset, 'replace')
             except UnicodeEncodeError:
                 continue
