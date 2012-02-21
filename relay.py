@@ -1,5 +1,7 @@
 # irc relay
-# Copyright (C) 2011 Changwoo Ryu
+# -*- encoding: utf-8 -*-
+
+# Copyright (C) 2012 Changwoo Ryu
 #
 # This program is free software; you can redistribute it and'or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,121 +16,212 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from irclib import IRC
+from twisted.words.protocols import irc
+from twisted.internet import protocol
+from twisted.internet import reactor
+from twisted.internet import endpoints
 
-class ChannelRelay:
-    def __init__(self, infos):
-        self.conns = []
-        self.data = infos
-        for name in infos.keys():
-            host = infos[name]['host']
-            port = infos[name]['port']
-            nick = infos[name]['nick']
-            try:
-                password = infos[name]['password']
-            except KeyError:
-                password = ''
-            try:
-                username = infos[name]['username']
-            except KeyError:
-                username = nick
-            try:
-                realname = infos[name]['realname']
-            except KeyError:
-                realname = nick
+import xml.dom.minidom as minidom
 
-            charset = infos[name]['charset']
+from string import Template
 
-            ircobj = IRC()
-            self.data[name]['ircobj'] = ircobj
-            conn = ircobj.server().connect(host, port, nick.encode(charset),
-                                           password, username.encode(charset),
-                                           realname.encode(charset))
-            self.data[name]['conn'] = conn
-            conn.server_name = name
 
-            conn.add_global_handler('welcome', self.on_welcome)
-            conn.add_global_handler('pubmsg', self.on_msg)
-            conn.add_global_handler('action', self.on_msg)
-            self.conns.append(conn)
+class RelayBot(irc.IRCClient):
+    # utility functions
+    @property
+    def encoding(self):
+        return self.factory.encoding
 
-    def main(self):
-        while True:
-            for name in self.data.keys():
-                self.data[name]['ircobj'].process_once(0.5)
+    # protocol properties
+    @property
+    def nickname(self):
+        return self.factory.nickname.encode(self.encoding)
 
-    # irclib callbacks
-    def on_welcome(self, conn, event):
-        name = conn.server_name
-        channel = self.data[name]['channel']
-        charset = self.data[name]['charset']
-        print 'source: %s' % event.source()
-        print 'target: %s' % event.target()
-        print 'msg: %s' % event.arguments()[0]
-        conn.join(channel)
+    @property
+    def username(self):
+        return self.factory.username.encode(self.encoding)
 
-    def on_msg(self, conn, event):
-        name = conn.server_name
-        channel = self.data[name]['channel']
-        if event.target() != channel:
+    @property
+    def realname(self):
+        return self.factory.realname.encode(self.encoding)
+
+    # protocol events
+    def signedOn(self):
+        for channel in self.factory.channels:
+            channel_encoded = channel.encode(self.encoding)
+            self.join(channel_encoded)
+        print "Signed on as %s." % (self.factory.nickname,)
+
+    def joined(self, channel):
+        print "Joined %s." % (channel,)
+
+    def privmsg(self, user, channel, msg):
+        self.on_msg('PRIVMSG', user, channel, msg)
+
+    def pubmsg(self, user, channel, msg):
+        self.on_msg('PUBMSG', user, channel, msg)
+
+    def action(self, user, channel, msg):
+        self.on_msg('ACTION', user, channel, msg)
+
+    def on_msg(self, msgtype, user, channel, msg):
+        server_u = self.factory.server_name
+        channel_u = channel.decode(self.encoding, 'ignore')
+        user_u = user.decode(self.encoding, 'ignore')
+        msg_u = msg.decode(self.encoding, 'ignore')
+
+        self.factory.event_notify.on_msg(msgtype,
+                                         server_u, channel_u, user_u, msg_u)
+
+    def say_relay(self, channel, msg):
+        channel_e = channel.encode(self.encoding, 'ignore')
+        msg_e = msg.encode(self.encoding, 'ignore')
+        self.say(channel_e, msg_e)
+
+    def describe_relay(self, channel, msg):
+        channel_e = channel.encode(self.encoding, 'ignore')
+        msg_e = msg.encode(self.encoding, 'ignore')
+        self.describe(channel_e, msg_e)
+
+class RelayBotFactory(protocol.ClientFactory):
+    protocol = RelayBot
+
+    def __init__(self, config, event_notify):
+        self.server_name = config['name']
+        self.channels = config['channels']
+        self.nickname = config['nickname']
+        self.username = config['username']
+        self.realname = config['realname']
+        self.encoding = config['encoding']
+        self.event_notify = event_notify
+
+    def clientConnectionLost(self, connector, reason):
+        print "Lost connection (%s), reconnecting." % (reason,)
+        connector.connect()
+
+    def clientConnectionFailed(self, connector, reason):
+        print "Could not connect: %s" % (reason,)
+
+    def buildProtocol(self, addr):
+        proto = protocol.ClientFactory.buildProtocol(self, addr)
+        self.connectedProtocol = proto
+        return proto
+
+
+class RelayServer:
+    def __init__(self, config_file_path):
+        self.parse_config(config_file_path)
+        self.factories = {}
+        for server in self.config['servers']:
+            factory = RelayBotFactory(server, self)
+            reactor.connectTCP(server['hostname'], server['port'], factory)
+            self.factories[server['name']] = factory
+
+    def parse_config(self, config_file_path):
+        dom_doc = minidom.parse(config_file_path)
+        dom_root = dom_doc.firstChild
+
+        # some verification.. it's not intended to be perfect!
+        assert(dom_doc.hasChildNodes() and len(dom_doc.childNodes) == 1)
+        assert(dom_root.localName == u'config')
+
+        config = {}
+        config['servers'] = []
+        config['relaygroups'] = []
+        
+        for dom_server in dom_root.getElementsByTagName('server'):
+            data = {}
+            data['name'] = dom_server.getAttribute('name')
+            data['hostname'] = dom_server.getAttribute('hostname')
+            data['port'] = int(dom_server.getAttribute('port'))
+            data['nickname'] = dom_server.getAttribute('nickname')
+            data['username'] = dom_server.getAttribute('username')
+            data['realname'] = dom_server.getAttribute('realname')
+            data['encoding'] = dom_server.getAttribute('encoding')
+            data['channels'] = []
+            for dom_channel in dom_server.getElementsByTagName('channel'):
+                name = dom_channel.getAttribute('channel')
+                data['channels'].append(name)
+            config['servers'].append(data)
+
+        for dom_rg in dom_root.getElementsByTagName('relaygroup'):
+            data = {}
+            data['name'] = dom_rg.getAttribute('name')
+            data['nodes'] = []
+            for dom_node in dom_rg.getElementsByTagName('node'):
+                k = {}
+                k['server'] = dom_node.getAttribute('server')
+                k['channel'] = dom_node.getAttribute('channel')
+                inputenable = (dom_node.getAttribute('inputenable') == 'true')
+                k['inputenable'] = inputenable
+                outputenable = (dom_node.getAttribute('outputenable') == 'true')
+                k['outputenable'] = outputenable
+                k['outputformat'] = dom_node.getAttribute('outputformat')
+                data['nodes'].append(k)
+            config['relaygroups'].append(data)
+
+        print config
+        self.config = config
+
+    def run(self):
+        reactor.run()
+
+    ######################################################################
+    # events
+
+    def get_input_relay_groups(self, server, channel):
+        def has_input_relay_channel(group):
+            for node in  group['nodes']:
+                if (node['server'] == server and
+                    node['channel'] == channel and
+                    node['inputenable']):
+                    return True
+            return False
+        return filter(has_input_relay_channel, self.config['relaygroups'])
+
+    def on_msg(self, msgtype, server, channel, user, msg):
+        def get_output_nodes(group):
+            def is_output_node(node):
+                return node['outputenable']
+            return filter(is_output_node, group['nodes'])
+
+        def format_msg(fmtstr, server, channel, user, msg):
+            template = Template(fmtstr)
+            print user
+            nickname, userhost = user.split('!', 1)
+            return template.substitute(nickname=nickname, servername=server, channel=channel, message=msg)
+                
+        if msgtype != 'PRIVMSG' and msgtype != 'ACTION':
+            print 'msgtype %s ignored' % msgtype
             return
-        charset = self.data[name]['charset']
 
-        try:
-            uninick = event.source().split('!')[0].decode(charset)
-            msg = event.arguments()[0]
-            unimsg = msg.decode(charset)
-            try:
-                prefix = self.data[name]['prefix']
-                if not unimsg.startswith(prefix):
-                    return
-                unimsg = unimsg[len(prefix):].lstrip()
-            except KeyError:
-                # no prefix - relay it
-                pass
-        except UnicodeDecodeError:
-            return
+        for relaygroup in self.get_input_relay_groups(server, channel):
+            for node in get_output_nodes(relaygroup):
+                if node['server'] == server and node['channel'] == channel:
+                    continue
+                oserver = node['server']
+                ochannel = node['channel']
+                factory = self.factories[oserver]
+                proto = factory.connectedProtocol
+                msgf = format_msg(node['outputformat'],
+                                  server, channel, user, msg)
 
-        # avoid possible duplicated relay
-        try:
-            if unimsg[0] == u'<':
-                return
-        except IndexError:
-            pass
+                if msgtype == 'PRIVMSG':
+                    proto.say_relay(ochannel, msgf)
+                elif msgtype == 'ACTION':
+                    proto.describe_relay(ochannel, msgf)
 
-        print 'pubmsg: %s' % unimsg
+    def on_pubmsg(self, server, channel, user, msg):
+        print "PUBMSG %s@%s/%s: %s" % (user, server, channel, msg)
+        
+    def on_action(self, server, channel, user, msg):
+        print "ACTION %s@%s/%s: %s" % (user, server, channel, msg)
 
-        for n in self.data.keys():
-            if n == name:
-                continue
 
-            target_channel = self.data[n]['channel']
-            target_charset = self.data[n]['charset']
-            
-            try:
-                try:
-                    if self.data[n]['mangle-nicks']:
-                        pnick = (uninick[0] + '_' + uninick[1:])
-                    else:
-                        pnick = uninick
-                except KeyError:
-                    pnick = uninick
-                pnick = uninick.encode(target_charset, 'replace')
-                target_msg = '<%s> ' % (pnick,)
-                target_msg += unimsg.encode(target_charset, 'replace')
-            except UnicodeEncodeError:
-                continue
-
-            # truncate the string under the IRC line length limit
-            try:
-                max_msg_bytes = self.data[n]['max-msg-bytes']
-                target_msg = target_msg[:max_msg_bytes]
-                tempunimsg = target_msg.decode(target_charset, 'ignore')
-                target_msg = tempunimsg.encode(target_charset)
-            except KeyError:
-                pass
-
-            if event.eventtype() == 'pubmsg':
-                self.data[n]['conn'].privmsg(target_channel, target_msg)
-            elif event.eventtype() == 'action':
-                self.data[n]['conn'].action(target_channel, target_msg)
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) != 2:
+        print "Usage: %s <config.xml>"
+        sys.exit(1)
+    s = RelayServer(sys.argv[1])
+    s.run()

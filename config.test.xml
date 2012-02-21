@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<config>
+
+  <!-- servers: define servers and channels to be connected -->
+
+  <server name="ozinger"
+          hostname="irc.ozinger.org"
+          port="6667"
+          nickname="트위스티드릴레이"
+          username="GNOMERELAY"
+          realname="그놈릴레이 TWISTED"
+          encoding="UTF-8" >
+    <channel channel="#setzer" />
+    <channel channel="#setzer2" />
+  </server>
+
+  <server name="hanirc"
+          hostname="irc.hanirc.org"
+          port="6667"
+          nickname="트위스티드릴레이"
+          username="GNOMERELAY"
+          realname="그놈릴레이 TWISTED"
+          encoding="CP949" >
+    <channel channel="#setzer" />
+  </server>
+
+  <!--
+      relay groups: define how to relay messages
+
+      outputformat attribute is a Python template string with
+      ${nickname}, ${servername}, ${channel}, ${message}.
+  -->
+
+  <relaygroup name="test">
+    <node server="ozinger"
+          channel="#setzer"
+          inputenable="true"
+          outputenable="true"
+          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+    <node server="ozinger"
+          channel="#setzer2"
+          inputenable="true"
+          outputenable="true"
+          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+    <node server="hanirc"
+          channel="#setzer"
+          inputenable="true"
+          outputenable="true"
+          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+  </relaygroup>
+
+</config>
