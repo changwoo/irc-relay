@@ -28,11 +28,18 @@
 
       outputformat attribute is a Python template string with
       ${nickname}, ${servername}, ${channel}, ${message}.
+
+      ignorepattern attribute is a Python regular expression. Any
+      message matching this will be ignored.
+
+      maxmessagebytes attribute is an integer which defines the line
+      wrapping limit.
   -->
 
   <relaygroup name="gnome_is_gnome"
       outputformat="&lt;${nickname}&gt;&#9;${message}"
-      ignorepattern="^&lt;.*&gt;&#9;" >
+      ignorepattern="^&lt;.*&gt;&#9;"
+      maxmessagebytes="350" >
 
     <node server="ozinger"
           channel="#gnome"

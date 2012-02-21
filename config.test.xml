@@ -32,11 +32,15 @@
 
       ignorepattern attribute is a Python regular expression. Any
       message matching this will be ignored.
+
+      maxmessagebytes attribute is an integer which defines the line
+      wrapping limit.
   -->
 
   <relaygroup name="test"
       outputformat="&lt;${nickname}@${servername}/${channel}&gt;&#9;${message}"
-      ignorepattern="^&lt;.*&gt;&#9;" >
+      ignorepattern="^&lt;.*&gt;&#9;"
+      maxmessagebytes="350" >
 	
     <node server="ozinger"
           channel="#setzer"

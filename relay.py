@@ -24,7 +24,9 @@ from twisted.internet import endpoints
 import xml.dom.minidom as minidom
 
 from string import Template
+
 import re
+import textwrap
 
 
 class RelayBot(irc.IRCClient):
@@ -74,15 +76,37 @@ class RelayBot(irc.IRCClient):
         self.factory.event_notify.on_msg(msgtype,
                                          server_u, channel_u, user_u, msg_u)
 
-    def say_relay(self, channel, msg):
-        channel_e = channel.encode(self.encoding, 'ignore')
-        msg_e = msg.encode(self.encoding, 'ignore')
-        self.say(channel_e, msg_e)
+    def encode_and_wrap_lines(self, msg, maxbytes):
+        if not maxbytes:
+            return [msg.encode(self.encoding, 'ignore')]
+        lines = []
+        while len(msg) > 0:
+            encoded = msg.encode(self.encoding, 'ignore')
+            wrapper = textwrap.TextWrapper()
+            wrapper.width=maxbytes
+            wrapper.expand_tabs=False
+            wrapper.replace_whitespace=False
+            try:
+                wrapped = wrapper.wrap(encoded)[0]
+            except IndexError:
+                # no more valid characters
+                break
+            tmp_unistr = wrapped.decode(self.encoding, 'ignore')
+            lines.append(tmp_unistr.encode(self.encoding))
+            msg = msg[len(tmp_unistr):]
+        return lines
 
-    def describe_relay(self, channel, msg):
+    def say_relay(self, channel, msg, maxmsgbytes=None):
         channel_e = channel.encode(self.encoding, 'ignore')
-        msg_e = msg.encode(self.encoding, 'ignore')
-        self.describe(channel_e, msg_e)
+        msgs = self.encode_and_wrap_lines(msg, maxmsgbytes)
+        for m in msgs:
+            self.say(channel_e, m)
+
+    def describe_relay(self, channel, msg, maxmsgbytes=None):
+        channel_e = channel.encode(self.encoding, 'ignore')
+        msgs = self.encode_and_wrap_lines(msg, maxmsgbytes)
+        for m in msgs:
+            self.describe(channel_e, m)
 
 class RelayBotFactory(protocol.ClientFactory):
     protocol = RelayBot
@@ -152,6 +176,9 @@ class RelayServer:
             pattern = dom_rg.getAttribute('ignorepattern')
             if pattern:
                 data['ignorepattern'] = re.compile(pattern)
+            maxmessagebytes = dom_rg.getAttribute('maxmessagebytes')
+            if maxmessagebytes:
+                data['maxmessagebytes'] = int(maxmessagebytes)
             data['nodes'] = []
             for dom_node in dom_rg.getElementsByTagName('node'):
                 k = {}
@@ -167,6 +194,9 @@ class RelayServer:
                 pattern = dom_node.getAttribute('ignorepattern')
                 if pattern:
                     k['ignorepattern'] = pattern
+                maxmessagebytes = dom_node.getAttribute('maxmessagebytes')
+                if maxmessagebytes:
+                    k['maxmessagebytes'] = int(maxmessagebytes)
                 data['nodes'].append(k)
             config['relaygroups'].append(data)
 
@@ -231,10 +261,16 @@ class RelayServer:
                     output_format = relaygroup['outputformat']
                 msgf = format_msg(output_format, server, channel, user, msg)
 
+                if node.has_key('maxmessagebytes'):
+                    max_bytes = node['maxmessagebytes']
+                else:
+                    # use the value of the group
+                    max_bytes = relaygroup['maxmessagebytes']
+
                 if msgtype == 'PRIVMSG':
-                    proto.say_relay(ochannel, msgf)
+                    proto.say_relay(ochannel, msgf, max_bytes)
                 elif msgtype == 'ACTION':
-                    proto.describe_relay(ochannel, msgf)
+                    proto.describe_relay(ochannel, msgf, max_bytes)
 
     def on_pubmsg(self, server, channel, user, msg):
         print "PUBMSG %s@%s/%s: %s" % (user, server, channel, msg)
