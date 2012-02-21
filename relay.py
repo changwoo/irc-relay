@@ -24,6 +24,7 @@ from twisted.internet import endpoints
 import xml.dom.minidom as minidom
 
 from string import Template
+import re
 
 
 class RelayBot(irc.IRCClient):
@@ -147,6 +148,10 @@ class RelayServer:
         for dom_rg in dom_root.getElementsByTagName('relaygroup'):
             data = {}
             data['name'] = dom_rg.getAttribute('name')
+            data['outputformat'] = dom_rg.getAttribute('outputformat')
+            pattern = dom_rg.getAttribute('ignorepattern')
+            if pattern:
+                data['ignorepattern'] = re.compile(pattern)
             data['nodes'] = []
             for dom_node in dom_rg.getElementsByTagName('node'):
                 k = {}
@@ -156,7 +161,12 @@ class RelayServer:
                 k['inputenable'] = inputenable
                 outputenable = (dom_node.getAttribute('outputenable') == 'true')
                 k['outputenable'] = outputenable
-                k['outputformat'] = dom_node.getAttribute('outputformat')
+                fmtstr = dom_node.getAttribute('outputformat')
+                if fmtstr:
+                    k['outputformat'] = fmtstr
+                pattern = dom_node.getAttribute('ignorepattern')
+                if pattern:
+                    k['ignorepattern'] = pattern
                 data['nodes'].append(k)
             config['relaygroups'].append(data)
 
@@ -187,7 +197,6 @@ class RelayServer:
 
         def format_msg(fmtstr, server, channel, user, msg):
             template = Template(fmtstr)
-            print user
             nickname, userhost = user.split('!', 1)
             return template.substitute(nickname=nickname, servername=server, channel=channel, message=msg)
                 
@@ -196,15 +205,31 @@ class RelayServer:
             return
 
         for relaygroup in self.get_input_relay_groups(server, channel):
+            try:
+                match = relaygroup['ignorepattern'].match(msg)
+                if relaygroup['ignorepattern'].match(msg):
+                    continue
+            except KeyError:
+                pass
+
             for node in get_output_nodes(relaygroup):
                 if node['server'] == server and node['channel'] == channel:
                     continue
+                try:
+                    if node['ignorepattern'].match(msg):
+                        continue
+                except KeyError:
+                    pass
                 oserver = node['server']
                 ochannel = node['channel']
                 factory = self.factories[oserver]
                 proto = factory.connectedProtocol
-                msgf = format_msg(node['outputformat'],
-                                  server, channel, user, msg)
+                if node.has_key('outputformat'):
+                    output_format = node['outputformat']
+                else:
+                    # use the format of the group
+                    output_format = relaygroup['outputformat']
+                msgf = format_msg(output_format, server, channel, user, msg)
 
                 if msgtype == 'PRIVMSG':
                     proto.say_relay(ochannel, msgf)

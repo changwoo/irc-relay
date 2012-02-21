@@ -29,24 +29,27 @@
 
       outputformat attribute is a Python template string with
       ${nickname}, ${servername}, ${channel}, ${message}.
+
+      ignorepattern attribute is a Python regular expression. Any
+      message matching this will be ignored.
   -->
 
-  <relaygroup name="test">
+  <relaygroup name="test"
+      outputformat="&lt;${nickname}@${servername}/${channel}&gt;&#9;${message}"
+      ignorepattern="^&lt;.*&gt;&#9;" >
+	
     <node server="ozinger"
           channel="#setzer"
           inputenable="true"
-          outputenable="true"
-          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+          outputenable="true"/>
     <node server="ozinger"
           channel="#setzer2"
           inputenable="true"
-          outputenable="true"
-          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+          outputenable="true" />
     <node server="hanirc"
-          channel="#setzer"
+          channel="#setzer2"
           inputenable="true"
-          outputenable="true"
-          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+          outputenable="true" />
   </relaygroup>
 
 </config>

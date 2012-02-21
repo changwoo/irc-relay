@@ -30,17 +30,18 @@
       ${nickname}, ${servername}, ${channel}, ${message}.
   -->
 
-  <relaygroup name="gnome_is_gnoem">
+  <relaygroup name="gnome_is_gnome"
+      outputformat="&lt;${nickname}&gt;&#9;${message}"
+      ignorepattern="^&lt;.*&gt;&#9;" >
+
     <node server="ozinger"
           channel="#gnome"
           inputenable="true"
-          outputenable="true"
-          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+          outputenable="true" />
     <node server="hanirc"
           channel="#gnome"
           inputenable="true"
-          outputenable="true"
-          outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}" />
+          outputenable="true" />
   </relaygroup>
 
 </config>
