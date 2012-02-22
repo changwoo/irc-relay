@@ -67,6 +67,9 @@ class RelayBot(irc.IRCClient):
     def action(self, user, channel, msg):
         self.on_msg('ACTION', user, channel, msg)
 
+    def kickedFrom(self, channel, kicker, message):
+        self.join(channel)
+
     def on_msg(self, msgtype, user, channel, msg):
         server_u = self.factory.server_name
         channel_u = channel.decode(self.encoding, 'ignore')
@@ -108,7 +111,7 @@ class RelayBot(irc.IRCClient):
         for m in msgs:
             self.describe(channel_e, m)
 
-class RelayBotFactory(protocol.ClientFactory):
+class RelayBotFactory(protocol.ReconnectingClientFactory):
     protocol = RelayBot
 
     def __init__(self, config, event_notify):
@@ -122,13 +125,19 @@ class RelayBotFactory(protocol.ClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         print "Lost connection (%s), reconnecting." % (reason,)
-        connector.connect()
+        protocol.ReconnectingClientFactory.clientConnectionLost(self, connector,
+                                                                reason)
 
     def clientConnectionFailed(self, connector, reason):
-        print "Could not connect: %s" % (reason,)
+        print "Could not connect, reconnecting: %s" % (reason,)
+        protocol.ReconnectingClientFactory.clientConnectionFailed(self,
+                                                                  connector,
+                                                                  reason)
 
     def buildProtocol(self, addr):
-        proto = protocol.ClientFactory.buildProtocol(self, addr)
+        print 'Resetting reconnection delay'
+        self.resetDelay()
+        proto = protocol.ReconnectingClientFactory.buildProtocol(self, addr)
         self.connectedProtocol = proto
         return proto
 
