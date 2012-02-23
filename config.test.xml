@@ -6,7 +6,7 @@
   <server name="ozinger"
           hostname="irc.ozinger.org"
           port="6667"
-          nickname="트위스티드릴레이"
+          nickname="트위스티드릴"
           username="GNOMERELAY"
           realname="그놈릴레이 TWISTED"
           encoding="UTF-8" >
@@ -17,7 +17,7 @@
   <server name="hanirc"
           hostname="irc.hanirc.org"
           port="6667"
-          nickname="트위스티드릴레이"
+          nickname="트위스티드릴"
           username="GNOMERELAY"
           realname="그놈릴레이 TWISTED"
           encoding="CP949" >
@@ -38,9 +38,9 @@
   -->
 
   <relaygroup name="test"
-      outputformat="&lt;${nickname}@${servername}/${channel}&gt;&#9;${message}"
-      ignorepattern="^&lt;.*&gt;&#9;"
-      maxmessagebytes="350" >
+      outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}"
+      ignorepattern="^&lt;\S+&gt;\s+"
+      maxmessagebytes="342" >
 	
     <node server="ozinger"
           channel="#setzer"
@@ -51,7 +51,7 @@
           inputenable="true"
           outputenable="true" />
     <node server="hanirc"
-          channel="#setzer2"
+          channel="#setzer"
           inputenable="true"
           outputenable="true" />
   </relaygroup>
