@@ -26,7 +26,6 @@ import xml.dom.minidom as minidom
 from string import Template
 
 import re
-import textwrap
 
 
 class RelayBot(irc.IRCClient):
@@ -203,15 +202,46 @@ class RelayServer:
                 return node['outputenable']
             return filter(is_output_node, group['nodes'])
 
-        def format_msg(fmtstr, server, channel, user, msg):
-            template = Template(fmtstr)
+        def truncate_irc_msg(text, encoding, max_bytes):
+            # truncate on a character boundary
+            line = text.encode(encoding)[:max_bytes].decode(encoding, 'ignore')
+            if line == text:
+                return line
+            else:
+                # truncate before a space if possible
+                m = re.compile(u'^(.*\s)[^\s]+$').match(line)
+                if m:
+                    line = m.group(1)
+                return line
+
+        def format_line(fmtstr, server, channel, user, msg):
             nickname, userhost = user.split('!', 1)
-            return template.substitute(nickname=nickname, servername=server, channel=channel, message=msg)
+            template = Template(fmtstr)
+            f = template.substitute(nickname=nickname,
+                                    servername=server,
+                                    channel=channel, message=msg)
+            return f
+
+        def format_lines(fmtstr, server, channel, user, msg, encoding,
+                         max_bytes):
+
+            # calculate the length on empty string
+            prefix_len = len(format_line(fmtstr, server, channel, user, ''))
+            max_bytes -= prefix_len
+            lines = []
+
+            while (len(msg) > 0):
+                m = truncate_irc_msg(msg, encoding, max_bytes)
+                f = format_line(fmtstr, server, channel, user, m)
+                lines.append(f)
+                msg = msg[len(m):]
+
+            return lines
 
         def send_relay(fmtstr, server, channel, user, msg, max_bytes,
                        msgtype, proto, ochannel):
             if not max_bytes:
-                msgf = format_msg(fmtstr, server, channel, user, msg)
+                msgf = format_line(fmtstr, server, channel, user, msg)
                 encoded = msgf.encode(proto.encoding)
                 if msgtype == 'PRIVMSG':
                     proto.say(ochannel, encoded)
@@ -219,28 +249,16 @@ class RelayServer:
                     proto.describe(ochannel, encoded)
                 return
 
+            lines = format_lines(fmtstr, server, channel, user, msg,
+                                 proto.encoding, max_bytes)
             # line wrapping
-            while len(msg) > 0:
-                msgf = format_msg(fmtstr, server, channel, user, msg)
-                encoded = msgf.encode(proto.encoding)
-                wrapper = textwrap.TextWrapper()
-                wrapper.width=max_bytes
-                wrapper.expand_tabs=False
-                wrapper.replace_whitespace=False
-                try:
-                    wrapped = wrapper.wrap(encoded)[0]
-                except IndexError:
-                    # no more valid characters
-                    break
-                tmp_unistr = wrapped.decode(proto.encoding, 'ignore')
-                encoded = tmp_unistr.encode(proto.encoding)
+            for line in lines:
+                encoded = line.encode(proto.encoding)
 
                 if msgtype == 'PRIVMSG':
                     proto.say(ochannel.encode(proto.encoding), encoded)
                 elif msgtype == 'ACTION':
                     proto.describe(ochannel.encode(proto.encoding), encoded)
-
-                msg = msgf[len(tmp_unistr):]
 
 
         if msgtype != 'PRIVMSG' and msgtype != 'ACTION':
