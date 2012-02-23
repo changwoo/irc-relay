@@ -79,38 +79,6 @@ class RelayBot(irc.IRCClient):
         self.factory.event_notify.on_msg(msgtype,
                                          server_u, channel_u, user_u, msg_u)
 
-    def encode_and_wrap_lines(self, msg, maxbytes):
-        if not maxbytes:
-            return [msg.encode(self.encoding, 'ignore')]
-        lines = []
-        while len(msg) > 0:
-            encoded = msg.encode(self.encoding, 'ignore')
-            wrapper = textwrap.TextWrapper()
-            wrapper.width=maxbytes
-            wrapper.expand_tabs=False
-            wrapper.replace_whitespace=False
-            try:
-                wrapped = wrapper.wrap(encoded)[0]
-            except IndexError:
-                # no more valid characters
-                break
-            tmp_unistr = wrapped.decode(self.encoding, 'ignore')
-            lines.append(tmp_unistr.encode(self.encoding))
-            msg = msg[len(tmp_unistr):]
-        return lines
-
-    def say_relay(self, channel, msg, maxmsgbytes=None):
-        channel_e = channel.encode(self.encoding, 'ignore')
-        msgs = self.encode_and_wrap_lines(msg, maxmsgbytes)
-        for m in msgs:
-            self.say(channel_e, m)
-
-    def describe_relay(self, channel, msg, maxmsgbytes=None):
-        channel_e = channel.encode(self.encoding, 'ignore')
-        msgs = self.encode_and_wrap_lines(msg, maxmsgbytes)
-        for m in msgs:
-            self.describe(channel_e, m)
-
 class RelayBotFactory(protocol.ReconnectingClientFactory):
     protocol = RelayBot
 
@@ -238,7 +206,42 @@ class RelayServer:
             template = Template(fmtstr)
             nickname, userhost = user.split('!', 1)
             return template.substitute(nickname=nickname, servername=server, channel=channel, message=msg)
-                
+
+        def send_relay(fmtstr, server, channel, user, msg, max_bytes,
+                       msgtype, proto, ochannel):
+            if not max_bytes:
+                msgf = format_msg(fmtstr, server, channel, user, msg)
+                encoded = msgf.encode(proto.encoding)
+                if msgtype == 'PRIVMSG':
+                    proto.say(ochannel, encoded)
+                elif msgtype == 'ACTION':
+                    proto.describe(ochannel, encoded)
+                return
+
+            # line wrapping
+            while len(msg) > 0:
+                msgf = format_msg(fmtstr, server, channel, user, msg)
+                encoded = msgf.encode(proto.encoding)
+                wrapper = textwrap.TextWrapper()
+                wrapper.width=max_bytes
+                wrapper.expand_tabs=False
+                wrapper.replace_whitespace=False
+                try:
+                    wrapped = wrapper.wrap(encoded)[0]
+                except IndexError:
+                    # no more valid characters
+                    break
+                tmp_unistr = wrapped.decode(proto.encoding, 'ignore')
+                encoded = tmp_unistr.encode(proto.encoding)
+
+                if msgtype == 'PRIVMSG':
+                    proto.say(ochannel.encode(proto.encoding), encoded)
+                elif msgtype == 'ACTION':
+                    proto.describe(ochannel.encode(proto.encoding), encoded)
+
+                msg = msgf[len(tmp_unistr):]
+
+
         if msgtype != 'PRIVMSG' and msgtype != 'ACTION':
             print 'msgtype %s ignored' % msgtype
             return
@@ -268,18 +271,14 @@ class RelayServer:
                 else:
                     # use the format of the group
                     output_format = relaygroup['outputformat']
-                msgf = format_msg(output_format, server, channel, user, msg)
-
                 if node.has_key('maxmessagebytes'):
                     max_bytes = node['maxmessagebytes']
                 else:
                     # use the value of the group
                     max_bytes = relaygroup['maxmessagebytes']
 
-                if msgtype == 'PRIVMSG':
-                    proto.say_relay(ochannel, msgf, max_bytes)
-                elif msgtype == 'ACTION':
-                    proto.describe_relay(ochannel, msgf, max_bytes)
+                send_relay(output_format, server, channel, user, msg, max_bytes,
+                           msgtype, proto, ochannel)
 
     def on_pubmsg(self, server, channel, user, msg):
         print "PUBMSG %s@%s/%s: %s" % (user, server, channel, msg)
