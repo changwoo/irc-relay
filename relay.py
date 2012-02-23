@@ -93,6 +93,7 @@ class RelayBotFactory(protocol.ReconnectingClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         print "Lost connection (%s), reconnecting." % (reason,)
+        del self.connectedProtocol
         protocol.ReconnectingClientFactory.clientConnectionLost(self, connector,
                                                                 reason)
 
@@ -265,7 +266,10 @@ class RelayServer:
                 oserver = node['server']
                 ochannel = node['channel']
                 factory = self.factories[oserver]
-                proto = factory.connectedProtocol
+                try:
+                    proto = factory.connectedProtocol
+                except AttributeError:
+                    continue
                 if node.has_key('outputformat'):
                     output_format = node['outputformat']
                 else:
