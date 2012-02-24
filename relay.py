@@ -204,7 +204,7 @@ class RelayServer:
 
         def truncate_irc_msg(text, encoding, max_bytes):
             # truncate on a character boundary
-            line = text.encode(encoding)[:max_bytes].decode(encoding, 'ignore')
+            line = text.encode(encoding,'ignore')[:max_bytes].decode(encoding, 'ignore')
             if line == text:
                 return line
             else:
@@ -253,7 +253,7 @@ class RelayServer:
                                  proto.encoding, max_bytes)
             # line wrapping
             for line in lines:
-                encoded = line.encode(proto.encoding)
+                encoded = line.encode(proto.encoding, 'ignore')
 
                 if msgtype == 'PRIVMSG':
                     proto.say(ochannel.encode(proto.encoding), encoded)
