@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<config>
+
+  <!-- servers: define servers and channels to be connected -->
+
+  <server name="ozinger"
+          hostname="irc.ozinger.org"
+          port="6667"
+          nickname="트위스티드릴"
+          username="GNOMERELAY"
+          realname="그놈릴레이 TWISTED"
+          encoding="UTF-8" >
+    <channel channel="#setzer" />
+    <channel channel="#setzer2" />
+  </server>
+
+  <server name="hanirc"
+          hostname="irc.hanirc.org"
+          port="6667"
+          nickname="트위스티드릴"
+          username="GNOMERELAY"
+          realname="그놈릴레이 TWISTED"
+          encoding="CP949" >
+    <channel channel="#setzer" />
+  </server>
+
+  <!--
+      relay groups: define how to relay messages
+
+      outputformat attribute is a Python template string with
+      ${nickname}, ${servername}, ${channel}, ${message}.
+
+      ignorepattern attribute is a Python regular expression. Any
+      message matching this will be ignored.
+
+      maxmessagebytes attribute is an integer which defines the line
+      wrapping limit.
+  -->
+
+  <relaygroup name="test"
+      outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}"
+      ignorepattern="^&lt;\S+&gt;\s+"
+      maxmessagebytes="342" >
+	
+    <node server="ozinger"
+          channel="#setzer"
+          inputenable="true"
+          outputenable="true"/>
+    <node server="ozinger"
+          channel="#setzer2"
+          inputenable="true"
+          outputenable="true" />
+    <node server="hanirc"
+          channel="#setzer"
+          inputenable="true"
+          outputenable="true" />
+  </relaygroup>
+
+</config>
