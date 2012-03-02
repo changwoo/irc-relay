@@ -37,8 +37,8 @@
   -->
 
   <relaygroup name="gnome_is_gnome"
-      outputformat="&lt;${nickname}&gt; ${message}"
-      ignorepattern="^&lt;\S+&gt;\s+"
+      outputformat="&lt;${nickname}&gt;  ${message}"
+      ignorepattern="^&lt;\S+&gt;  "
       maxmessagebytes="342" >
 
     <node server="ozinger"

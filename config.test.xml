@@ -38,8 +38,8 @@
   -->
 
   <relaygroup name="test"
-      outputformat="&lt;${nickname}@${servername}/${channel}&gt; ${message}"
-      ignorepattern="^&lt;\S+&gt;\s+"
+      outputformat="&lt;${nickname}@${servername}/${channel}&gt;  ${message}"
+      ignorepattern="^&lt;\S+&gt;  "
       maxmessagebytes="342" >
 	
     <node server="ozinger"
