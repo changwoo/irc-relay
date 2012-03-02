@@ -52,10 +52,10 @@ class RelayBot(irc.IRCClient):
         for channel in self.factory.channels:
             channel_encoded = channel.encode(self.encoding)
             self.join(channel_encoded)
-        print "Signed on as %s." % (self.factory.nickname,)
+        print u'Signed on as %s.' % (self.factory.nickname,)
 
     def joined(self, channel):
-        print "Joined %s." % (channel,)
+        print u'Joined %s.' % (channel,)
 
     def privmsg(self, user, channel, msg):
         self.on_msg('PRIVMSG', user, channel, msg)
@@ -91,19 +91,19 @@ class RelayBotFactory(protocol.ReconnectingClientFactory):
         self.event_notify = event_notify
 
     def clientConnectionLost(self, connector, reason):
-        print "Lost connection (%s), reconnecting." % (reason,)
+        print u'Lost connection (%s), reconnecting.' % (reason,)
         del self.connectedProtocol
         protocol.ReconnectingClientFactory.clientConnectionLost(self, connector,
                                                                 reason)
 
     def clientConnectionFailed(self, connector, reason):
-        print "Could not connect, reconnecting: %s" % (reason,)
+        print u'Could not connect, reconnecting: %s' % (reason,)
         protocol.ReconnectingClientFactory.clientConnectionFailed(self,
                                                                   connector,
                                                                   reason)
 
     def buildProtocol(self, addr):
-        print 'Resetting reconnection delay'
+        print u'Resetting reconnection delay'
         self.resetDelay()
         proto = protocol.ReconnectingClientFactory.buildProtocol(self, addr)
         self.connectedProtocol = proto
@@ -262,7 +262,7 @@ class RelayServer:
 
 
         if msgtype != 'PRIVMSG' and msgtype != 'ACTION':
-            print 'msgtype %s ignored' % msgtype
+            print u'msgtype %s ignored' % msgtype
             return
 
         for relaygroup in self.get_input_relay_groups(server, channel):
@@ -303,16 +303,16 @@ class RelayServer:
                            msgtype, proto, ochannel)
 
     def on_pubmsg(self, server, channel, user, msg):
-        print "PUBMSG %s@%s/%s: %s" % (user, server, channel, msg)
+        print u'PUBMSG %s@%s/%s: %s' % (user, server, channel, msg)
         
     def on_action(self, server, channel, user, msg):
-        print "ACTION %s@%s/%s: %s" % (user, server, channel, msg)
+        print u'ACTION %s@%s/%s: %s' % (user, server, channel, msg)
 
 
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 2:
-        print "Usage: %s <config.xml>"
+        print u'Usage: %s <config.xml>' % sys.argv[0]
         sys.exit(1)
     s = RelayServer(sys.argv[1])
     s.run()
