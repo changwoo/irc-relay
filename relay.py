@@ -90,21 +90,7 @@ class RelayBotFactory(protocol.ReconnectingClientFactory):
         self.encoding = config['encoding']
         self.event_notify = event_notify
 
-    def clientConnectionLost(self, connector, reason):
-        print u'Lost connection (%s), reconnecting.' % (reason,)
-        del self.connectedProtocol
-        protocol.ReconnectingClientFactory.clientConnectionLost(self, connector,
-                                                                reason)
-
-    def clientConnectionFailed(self, connector, reason):
-        print u'Could not connect, reconnecting: %s' % (reason,)
-        protocol.ReconnectingClientFactory.clientConnectionFailed(self,
-                                                                  connector,
-                                                                  reason)
-
     def buildProtocol(self, addr):
-        print u'Resetting reconnection delay'
-        self.resetDelay()
         proto = protocol.ReconnectingClientFactory.buildProtocol(self, addr)
         self.connectedProtocol = proto
         return proto
