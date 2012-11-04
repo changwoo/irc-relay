@@ -190,14 +190,16 @@ class RelayServer:
 
         def truncate_irc_msg(text, encoding, max_bytes):
             # truncate on a character boundary
-            line = text.encode(encoding,'ignore')[:max_bytes].decode(encoding, 'ignore')
-            if line == text:
+            line = text.encode(encoding,'replace')[:max_bytes].decode(encoding, 'ignore')
+                
+            if len(line) == len(text):
                 return line
             else:
-                # truncate before a space if possible
-                m = re.compile(u'^(.*\s)[^\s]+$').match(line)
-                if m:
-                    line = m.group(1)
+                if not line[-1].isspace() and not text[len(line)].isspace():
+                    # truncate before a space if possible
+                    m = re.compile(u'^(.*\s)[^\s]+$').match(line)
+                    if m:
+                        line = m.group(1)
                 return line
 
         def format_line(fmtstr, server, channel, user, msg):
@@ -218,6 +220,9 @@ class RelayServer:
 
             while (len(msg) > 0):
                 m = truncate_irc_msg(msg, encoding, max_bytes)
+                if not m:
+                    # nothing to convert any more
+                    break
                 f = format_line(fmtstr, server, channel, user, m)
                 lines.append(f)
                 msg = msg[len(m):]
