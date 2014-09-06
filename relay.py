@@ -1,7 +1,7 @@
 # irc relay
 # -*- encoding: utf-8 -*-
 
-# Copyright (C) 2012 Changwoo Ryu
+# Copyright (C) 2012, 2014 Changwoo Ryu
 #
 # This program is free software; you can redistribute it and'or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 from twisted.words.protocols import irc
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet import ssl
 from twisted.internet import endpoints
 
 import xml.dom.minidom as minidom
@@ -102,7 +103,10 @@ class RelayServer:
         self.factories = {}
         for server in self.config['servers']:
             factory = RelayBotFactory(server, self)
-            reactor.connectTCP(server['hostname'], server['port'], factory)
+            if server['use_ssl']:
+                reactor.connectSSL(server['hostname'], server['port'], factory, ssl.ClientContextFactory())
+            else:
+                reactor.connectTCP(server['hostname'], server['port'], factory)
             self.factories[server['name']] = factory
 
     def parse_config(self, config_file_path):
@@ -121,6 +125,7 @@ class RelayServer:
             data = {}
             data['name'] = dom_server.getAttribute('name')
             data['hostname'] = dom_server.getAttribute('hostname')
+            data['use_ssl'] = dom_server.getAttribute('use_ssl') == 'true'
             data['port'] = int(dom_server.getAttribute('port'))
             data['nickname'] = dom_server.getAttribute('nickname')
             data['username'] = dom_server.getAttribute('username')

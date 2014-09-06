@@ -5,7 +5,8 @@
 
   <server name="ozinger"
           hostname="irc.ozinger.org"
-          port="6667"
+          port="16667"
+          use_ssl="true"
           nickname="트위스티드릴"
           username="GNOMERELAY"
           realname="그놈릴레이 TWISTED"
