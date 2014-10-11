@@ -20,7 +20,6 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol
 from twisted.internet import reactor
 from twisted.internet import ssl
-from twisted.internet import endpoints
 
 import xml.dom.minidom as minidom
 
